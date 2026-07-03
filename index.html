@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIA Lucky Wheel</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial;
+    background:linear-gradient(135deg,#c8102e,#8b0000);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    flex-direction:column;
+    color:white;
+}
+
+.container{
+    position:relative;
+    display:none;
+    margin-top:20px;
+}
+
+.pointer{
+    width:0;height:0;
+    border-left:18px solid transparent;
+    border-right:18px solid transparent;
+    border-top:35px solid yellow;
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    top:-10px;
+    z-index:10;
+}
+
+canvas{
+    width:320px;
+    height:320px;
+    border-radius:50%;
+    border:6px solid #fff;
+    transition:transform 5s cubic-bezier(.17,.67,.13,1);
+    background:white;
+}
+
+input{
+    padding:12px;
+    width:260px;
+    margin:6px 0;
+    border:none;
+    border-radius:8px;
+    font-size:16px;
+}
+
+button{
+    padding:12px 20px;
+    border:none;
+    border-radius:10px;
+    background:#ffd700;
+    font-weight:bold;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+#result{
+    margin-top:20px;
+    font-size:18px;
+    text-align:center;
+}
+
+.box{
+    text-align:center;
+}
+</style>
+
+</head>
+<body>
+
+<div class="box" id="formBox">
+    <h2>AIA LUCKY WHEEL</h2>
+    <input id="name" placeholder="Họ tên">
+    <input id="phone" placeholder="Số điện thoại">
+    <button onclick="start()">BẮT ĐẦU</button>
+</div>
+
+<div class="container" id="gameBox">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="320" height="320"></canvas>
+</div>
+
+<button id="spinBtn" style="display:none" onclick="spin()">QUAY</button>
+
+<div id="result"></div>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbxsIwR7aTEb5HYtFGRzg4iXXGwA94ckpHaJLHtHwtUNSy1-RQg8Gjnd0SNqEqemwE3uBQ/exec";
+
+const prizes = [
+"GIẢM 4,500,000 HỌC PHÍ",
+"GIẢM 4,800,000 HỌC PHÍ",
+"GIẢM 5,300,000 HỌC PHÍ",
+"GIẢM 6,000,000 HỌC PHÍ",
+"GIẢM 7,000,000 HỌC PHÍ"
+];
+
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+
+const radius = 160;
+const arc = 2 * Math.PI / prizes.length;
+const colors = [
+    "#0072CE",
+    "#00A651",
+    "#8E44AD",
+    "#E53935",
+    "#F39C12"
+];
+
+let rotation = 0;
+let playerName = "";
+let playerPhone = "";
+let resultPrize = "";
+
+function draw(){
+    for(let i=0;i<prizes.length;i++){
+        ctx.beginPath();
+        ctx.fillStyle = colors[i];
+        ctx.moveTo(radius,radius);
+        ctx.arc(radius,radius,radius,i*arc,(i+1)*arc);
+        ctx.fill();
+
+        ctx.save();
+
+        ctx.translate(radius, radius);
+        ctx.rotate(i * arc + arc / 2);
+
+        ctx.textAlgn= "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle= "#fff";
+        ctx.font = "bold 10px Arial";
+        // tách text an toàn
+        // const text = prizes[i];
+        const text = prizes[i].replace("GIẢM ","");
+
+        ctx.fillText("GIẢM", radius * 0.55,-10);
+        ctx.fillText(text, radius * 0.55, 8);
+        ctx.fillText("HỌC PHÍ", radius* 0.55, 22);
+
+       // const text = prizes[i].repeat(" HỌC PHÍ","")
+       // const text = prizes[i] + " HỌC PHÍ";
+       // const parts = text.split(" ");
+
+       // ctx.fillText(parts[0], 95, -10);
+       // ctx.fillText(parts[1], 95, 10);
+        //ctx.fillText("HỌC PHÍ", 95, 30);
+
+        ctx.restore();
+        
+    }
+}
+draw();
+
+function start(){
+    playerName = document.getElementById("name").value;
+    playerPhone = document.getElementById("phone").value;
+
+    if(!playerName || !playerPhone){
+        alert("Nhập đầy đủ thông tin");
+        return;
+    }
+
+    document.getElementById("formBox").style.display="none";
+    document.getElementById("gameBox").style.display="block";
+    document.getElementById("spinBtn").style.display="block";
+}
+
+async function spin(){
+
+    document.getElementById("spinBtn").disabled = true;
+    document.getElementById("result").innerHTML = "Đang xử lý...";
+
+    const res = await fetch(API_URL,{
+        method:"POST",
+        body:JSON.stringify({
+            action:"spin",
+            name:playerName,
+            phone:playerPhone
+        })
+    });
+
+    const data = await res.json();
+
+    if(!data.success){
+        document.getElementById("result").innerHTML = data.message;
+        document.getElementById("spinBtn").disabled = false;
+        return;
+    }
+
+    resultPrize = data.prize;
+
+    const index = prizes.indexOf(resultPrize);
+    const degreePer = 360 / prizes.length;
+
+    const stopAngle = 360 - (index * degreePer) - degreePer/2;
+
+    rotation += 360*5 + stopAngle;
+
+    canvas.style.transform = `rotate(${rotation}deg)`;
+
+    setTimeout(()=>{
+
+        document.getElementById("result").innerHTML =
+        `
+        🎉 CHÚC MỪNG<br><br>
+        <b>${playerName}</b><br>
+        ${playerPhone}<br><br>
+        <h2>${resultPrize}</h2>
+        `;
+
+        document.getElementById("spinBtn").disabled = false;
+
+    },5200);
+}
+
+</script>
+
+</body>
+</html>
